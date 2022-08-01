@@ -46,7 +46,8 @@ local function beforeEveryFrame()
 			local formID = memory.readword(0x7e1800)
 			bossName = FormationIDToBoss[BossFormations[formID]]
 			
-			local anchorAgi = -1			
+			local anchorAgi = -1	
+			local partySize = 0			
 			for i=0,4 do
 				local firstCharByte = memory.readbyte(0x7E2000 +0x80 * i )
 				charData = {}
@@ -57,12 +58,14 @@ local function beforeEveryFrame()
 					end
 					charData.relAgi = calcAgi(charData.agility, anchorAgi)
 					partyBattleData[i] = charData
+					partySize = partySize + 1
 				end				
 			end
 			
 			for i=0,2 do
 				local currentEnemyId = memory.readbyte(0x7E29AD + i)
-				if currentEnemyId ~= 255 then					
+				-- 255 is for no enemy and 200 is the pre transformed Z, just special case hiding that to avoid confusion with trasnformed Z
+				if currentEnemyId ~= 255 and currentEnemyId ~= 200 then					
 					local enemyPosition = 0
 					local enemyGroupAtCurrentPosition = memory.readbyte(0x7E29BD + enemyPosition)
 					while (enemyGroupAtCurrentPosition ~= i) do
@@ -75,10 +78,19 @@ local function beforeEveryFrame()
 					local monsterData = {}
 					local monsterName = ""
 					
-					local monsterNameEntryStartingLocation = 0x0E8000 + 0x1800 + 8 * currentEnemyId
-					for j=0,7 do
-						local nextChar = memory.readbyte(monsterNameEntryStartingLocation  + j)
-						monsterName = monsterName .. TextTable[nextChar]
+					if currentEnemyId == 193 then
+						monsterName = "Mil/Rubi"
+					elseif currentEnemyId == 194 then
+						monsterName = "Kain/Val"
+					elseif currentEnemyId == 201 then
+						-- hide transformed Zeromus name because that is more fun
+						monsterName = "Z?"
+					else					
+						local monsterNameEntryStartingLocation = 0x0E8000 + 0x1800 + 8 * currentEnemyId
+						for j=0,7 do
+							local nextChar = memory.readbyte(monsterNameEntryStartingLocation  + j)
+							monsterName = monsterName .. TextTable[nextChar]
+						end
 					end
 					
 					monsterData.id = currentEnemyId					
@@ -96,7 +108,7 @@ local function beforeEveryFrame()
 			end
 			
 			if bossTipsText[bossName] ~= nil then
-				additionalBossTips = bossTipsText[bossName](currentBattleData)
+				additionalBossTips = bossTipsText[bossName](currentBattleData, partyBattleData, partySize)
 			end			
 			
 		else
